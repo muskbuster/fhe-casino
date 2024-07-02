@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.20;
 
-import "fhevm/lib/TFHE.sol";
+import "fhevm@0.3.x/lib/TFHE.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -17,7 +17,8 @@ contract RockPaperScissors is ReentrancyGuard, Ownable {
         }
         _;
     }
-
+        uint64 constant BLOCK_NUMBER_REFUND = 1000;
+    error ZeroWager();
     constructor(address _tokenAddress) Ownable(msg.sender) {
         betTokenAddress = _tokenAddress;
     }
@@ -64,16 +65,7 @@ contract RockPaperScissors is ReentrancyGuard, Ownable {
         uint256 stopGain,
         uint256 stopLoss
     );
-     /** @dev event emitted by the VRF callback with the bet results
-     * @param playerAddress address of the player that made the bet
-     * @param wager wager amount
-     * @param payout total payout transfered to the player
-     * @param tokenAddress address of token the wager was made and payout, 0 address is considered the native coin
-     * @param outcomes ouctome of each game, 0 loss, 1-> win, 2-> draw
-     * @param randomActions actions selected by the VRF 0->Rock, 1-> Paper, 2->Scissors
-     * @param payouts individual payouts for each bet
-     * @param numGames number of games performed
-     */
+
     event RockPaperScissors_Outcome_Event(
         address indexed playerAddress,
         uint256 wager,
@@ -146,10 +138,9 @@ emit RockPaperScissors_Play_Event(
     }
 
     function settleBet(
-        uint256 requestId,
-        uint256[] memory randomWords
+        address playerAddress,
+        uint32[] memory randomWords
     ) internal {
-        address playerAddress = rockPaperScissorsIDs[requestId];
         if (playerAddress == address(0)) revert();
         RockPaperScissorsGame storage game = rockPaperScissorsGames[
             playerAddress
@@ -199,7 +190,7 @@ emit RockPaperScissors_Play_Event(
             i
         );
         if (payout > 0) {
-            _transferPayout(payout, playerAddress);
+            _transferPayout(playerAddress,payout);
     }
     
     }
@@ -221,15 +212,15 @@ emit RockPaperScissors_Play_Event(
                     uint32(block.timestamp % 5);
             } else if (i % 3 == 0) {
                 randomNumberArray[i] =
-                    ((encryptedRandomNumber + uint32(i)) % 3) +
-                    uint32(block.timestamp % 5);
+                    ((encryptedRandomNumber + uint32(i)) % 7) +
+                    uint32(block.timestamp % 8);
             } else {
                 randomNumberArray[i] =
-                    ((encryptedRandomNumber + uint32(i)) % 3) +
-                    uint32(block.timestamp % 5);
+                    ((encryptedRandomNumber + uint32(i)) % 6) +
+                    uint32(block.timestamp % 4);
             }
         }
-        settleBet(uint256(playerAddress), randomNumberArray);
+        settleBet(playerAddress, randomNumberArray);
 
     }
     function generateEncryptedRandomNumber() internal view returns (uint32) {
